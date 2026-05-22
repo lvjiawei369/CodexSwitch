@@ -82,7 +82,8 @@ routes:
     provider: deepseek
 """
     APP_DIR.mkdir(parents=True, exist_ok=True)
-    CONFIG_YML.write_text(yaml, encoding="utf-8")
+    # Use Unix line endings (\n) — some YAML parsers choke on \r\n
+    CONFIG_YML.write_text(yaml, encoding="utf-8", newline="\n")
 
 def is_port_open():
     import socket
@@ -98,6 +99,14 @@ def shell(*args):
     if r.returncode != 0:
         raise RuntimeError(r.stderr or r.stdout)
     return r.stdout.strip()
+
+def _restart_codex():
+    """Kill any running Codex process so the user gets a clean restart."""
+    try:
+        subprocess.run(["taskkill", "/F", "/IM", "codex.exe"],
+                       capture_output=True, timeout=5)
+    except Exception:
+        pass
 
 # ── App state ─────────────────────────────────────────────────────────────────
 class State:
@@ -126,10 +135,12 @@ def start_deepseek(on_done):
                 shutil.copy2(codex_cfg, BACKUP)
 
             # Launch moonbridge, capture output to log for debugging
-            log_f = open(LOG_FILE, "w", encoding="utf-8")
+            # bufsize=1 + universal_newlines ensure log is flushed line-by-line
+            log_f = open(LOG_FILE, "w", encoding="utf-8", buffering=1)
             proc = subprocess.Popen(
                 [str(MOONBRIDGE), "--config", str(CONFIG_YML)],
                 stdout=log_f, stderr=log_f,
+                env={**os.environ, "MOONBRIDGE_LOG_LEVEL": "debug"},
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             state.process = proc
@@ -160,10 +171,12 @@ def start_deepseek(on_done):
             mb  = str(MOONBRIDGE)
             cfg = str(CONFIG_YML)
             model_id = shell(mb, "--config", cfg, "--print-codex-model")
+            # Use forward slashes for --codex-home; backslashes can confuse Go path handling
+            codex_home_fwd = CODEX_HOME.as_posix()
             toml = shell(mb, "--config", cfg,
                          "--print-codex-config", model_id,
                          "--codex-base-url", f"http://127.0.0.1:{PORT}/v1",
-                         "--codex-home", str(CODEX_HOME))
+                         "--codex-home", codex_home_fwd)
 
             display = "DeepSeek V4 Flash" if state.model == "deepseek-v4-flash" else "DeepSeek V4 Pro"
             toml = (toml
@@ -189,6 +202,8 @@ def start_deepseek(on_done):
             threading.Thread(target=monitor, daemon=True).start()
 
             state.status = "运行中"
+            # Restart Codex so it picks up the new config cleanly
+            _restart_codex()
             on_done(True)
         except Exception as e:
             state.enabled = False
