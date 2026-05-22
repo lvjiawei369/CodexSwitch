@@ -117,23 +117,41 @@ def _diagnose_proxy(model):
     catalog = CODEX_HOME / "models_catalog.json"
     results.append(f"[catalog] {'EXISTS' if catalog.exists() else 'MISSING'} {catalog}")
 
+    # Read actual base_instructions from catalog (what Codex sends as system prompt)
+    base_instructions = ""
+    try:
+        catalog_data = _json.loads(catalog.read_text(encoding="utf-8"))
+        models_list = catalog_data.get("models", [])
+        if models_list:
+            base_instructions = models_list[0].get("base_instructions", "")
+    except Exception:
+        pass
+    results.append(f"[base_instructions] {len(base_instructions)} chars")
+
     TOOL_DEF = {
         "type": "function", "name": "shell", "description": "run shell command",
         "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}
     }
 
+    HDR_FULL = {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"}
     tests = [
-        # header variants — real Codex sends X-Codex-Window-Id
-        ("no_window_id",   {"Content-Type":"application/json","Authorization":"Bearer test"},
-                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
-        ("with_window_id", {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"},
-                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
-        # Codex sends tools + window id together
-        ("tools+window",   {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"},
-                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "tools": [TOOL_DEF]}),
-        # Codex uses streaming
-        ("stream+window",  {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"},
-                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "stream": True}),
+        # Previous passing tests (quick sanity)
+        ("basic",        {"Content-Type":"application/json","Authorization":"Bearer test"},
+                         {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
+        # Full Codex simulation: instructions (22KB) + tools + stream + window_id
+        ("full_sim_nostream", HDR_FULL,
+                         {"model": model,
+                          "instructions": base_instructions,
+                          "input": [{"role":"user","content":"say hello"}],
+                          "max_output_tokens": 5,
+                          "tools": [TOOL_DEF]}),
+        ("full_sim_stream",   HDR_FULL,
+                         {"model": model,
+                          "instructions": base_instructions,
+                          "input": [{"role":"user","content":"say hello"}],
+                          "max_output_tokens": 5,
+                          "stream": True,
+                          "tools": [TOOL_DEF]}),
     ]
 
     for name, headers, payload in tests:
