@@ -3,7 +3,8 @@ dist/
 build/
 __pycache__/
 *.pyc
-*.spec
+# *.spec excluded — CodexSwitch.spec is needed for Windows build
+!CodexSwitch.spec
 
 # Swift build cache
 Swift/.build/
