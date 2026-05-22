@@ -40,49 +40,41 @@ def save_settings(data):
 
 # ── Moon Bridge config ────────────────────────────────────────────────────────
 def write_moonbridge_config(api_key, model):
-    display = "DeepSeek V4 Flash" if model == "deepseek-v4-flash" else "DeepSeek V4 Pro"
+    # Use the new config format documented at:
+    # https://github.com/deepseek-ai/awesome-deepseek-agent/blob/main/docs/codex.md
+    upstream = f"deepseek/{model}"
     yaml = f"""\
 mode: "Transform"
 
 server:
   addr: "127.0.0.1:{PORT}"
 
-defaults:
-  model: "{model}"
-
-models:
-  {model}:
-    context_window: 1000000
-    max_output_tokens: 384000
-    display_name: "{display}"
-    default_reasoning_level: "high"
-    supported_reasoning_levels:
-      - effort: "high"
-        description: "High reasoning effort"
-      - effort: "xhigh"
-        description: "Extra high reasoning effort"
-    supports_reasoning_summaries: true
-    default_reasoning_summary: "auto"
-    extensions:
-      deepseek_v4:
-        enabled: true
-
-providers:
-  deepseek:
-    base_url: "https://api.deepseek.com/anthropic"
-    api_key: "{api_key}"
-    version: "2023-06-01"
-    user_agent: "moonbridge/1.0"
-    offers:
-      - model: {model}
-
-routes:
-  {model}:
-    model: {model}
-    provider: deepseek
+provider:
+  providers:
+    deepseek:
+      base_url: "https://api.deepseek.com/anthropic"
+      api_key: "{api_key}"
+      models:
+        {model}:
+          context_window: 1000000
+          max_output_tokens: 384000
+          extensions:
+            deepseek_v4:
+              enabled: true
+          default_reasoning_level: "high"
+          supported_reasoning_levels:
+            - effort: "high"
+              description: "High reasoning effort"
+            - effort: "xhigh"
+              description: "Extra high reasoning effort"
+          supports_reasoning_summaries: true
+          default_reasoning_summary: "auto"
+  routes:
+    moonbridge:
+      to: "{upstream}"
+  default_model: "moonbridge"
 """
     APP_DIR.mkdir(parents=True, exist_ok=True)
-    # Use Unix line endings (\n) — some YAML parsers choke on \r\n
     CONFIG_YML.write_text(yaml, encoding="utf-8", newline="\n")
 
 def is_port_open():
@@ -204,7 +196,9 @@ def start_deepseek(on_done):
             proc = subprocess.Popen(
                 [str(MOONBRIDGE), "--config", str(CONFIG_YML)],
                 stdout=log_f, stderr=log_f,
-                env={**os.environ, "MOONBRIDGE_LOG_LEVEL": "debug"},
+                env={**os.environ,
+                     "MOONBRIDGE_LOG_LEVEL": "debug",
+                     "GODEBUG": "http2client=0"},   # force HTTP/1.1 upstream; prevents EOF-on-first-request 502
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             state.process = proc
@@ -241,12 +235,6 @@ def start_deepseek(on_done):
                          "--print-codex-config", model_id,
                          "--codex-base-url", f"http://127.0.0.1:{PORT}/v1",
                          "--codex-home", codex_home_fwd)
-
-            display = "DeepSeek V4 Flash" if state.model == "deepseek-v4-flash" else "DeepSeek V4 Pro"
-            toml = (toml
-                .replace('model_provider = "moonbridge"', f'model_provider = "{state.model}"')
-                .replace('[model_providers.moonbridge]',  f'[model_providers.{state.model}]')
-                .replace('name = "Moon Bridge"',          f'name = "{display}"'))
 
             # Merge: preserve original settings (MCP servers, notify, plugins)
             if BACKUP.exists():
