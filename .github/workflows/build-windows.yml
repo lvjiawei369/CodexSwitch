@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows Installer
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
       - 'assets/moonbridge.exe'
       - 'assets/icon.ico'
       - 'assets/icon.png'
+      - 'installer/CodexSwitch.iss'
       - '.github/workflows/build-windows.yml'
   workflow_dispatch:   # 允许手动触发
 
@@ -25,23 +26,29 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          pip install pyinstaller pillow pystray
+      - name: Install Python dependencies
+        run: pip install pyinstaller pillow pystray
 
-      - name: Build EXE
-        run: |
-          pyinstaller --clean --noconfirm CodexSwitch.spec
+      - name: Build EXE with PyInstaller
+        run: pyinstaller --clean --noconfirm CodexSwitch.spec
 
-      - name: Verify output
+      - name: Verify EXE
         run: |
           dir dist\
-          echo "EXE size:"
-          (Get-Item dist\CodexSwitch.exe).length / 1MB
+          Write-Host "EXE size: $([math]::Round((Get-Item dist\CodexSwitch.exe).length / 1MB, 1)) MB"
 
-      - name: Upload artifact
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        run: |
+          mkdir installer\installer_output
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\CodexSwitch.iss
+          dir installer\installer_output\
+
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CodexSwitch-Windows
-          path: dist\CodexSwitch.exe
+          name: CodexSwitch-Setup
+          path: installer\installer_output\CodexSwitch-Setup.exe
           retention-days: 30
