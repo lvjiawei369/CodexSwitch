@@ -32,4 +32,4 @@ assets/icon_128.png
 assets/icon_256.png
 assets/icon_512.png
 assets/icon_1024.png
-assets/icon.ico
+# assets/icon.ico — needed for Windows build, DO track it
