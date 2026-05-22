@@ -109,42 +109,46 @@ def _restart_codex():
         pass
 
 def _diagnose_proxy(model):
-    """Run three test requests and return combined diagnostic text."""
+    """Run targeted test requests to pinpoint 502 cause."""
     import urllib.request, urllib.error, json as _json
     results = []
 
+    # Check if models_catalog.json was written by --print-codex-config
+    catalog = CODEX_HOME / "models_catalog.json"
+    results.append(f"[catalog] {'EXISTS' if catalog.exists() else 'MISSING'} {catalog}")
+
     TOOL_DEF = {
-        "type": "function",
-        "name": "shell",
-        "description": "run shell command",
-        "parameters": {
-            "type": "object",
-            "properties": {"command": {"type": "string"}},
-            "required": ["command"]
-        }
+        "type": "function", "name": "shell", "description": "run shell command",
+        "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}
     }
 
     tests = [
-        ("basic",        {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
-        ("with_tools",   {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "tools": [TOOL_DEF]}),
-        ("streaming",    {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "stream": True}),
+        # header variants — real Codex sends X-Codex-Window-Id
+        ("no_window_id",   {"Content-Type":"application/json","Authorization":"Bearer test"},
+                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
+        ("with_window_id", {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"},
+                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
+        # Codex sends tools + window id together
+        ("tools+window",   {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"},
+                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "tools": [TOOL_DEF]}),
+        # Codex uses streaming
+        ("stream+window",  {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"},
+                           {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "stream": True}),
     ]
 
-    for name, payload in tests:
+    for name, headers, payload in tests:
         try:
             req = urllib.request.Request(
                 f"http://127.0.0.1:{PORT}/v1/responses",
                 data=_json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json",
-                         "Authorization": "Bearer test"},
-                method="POST"
+                headers=headers, method="POST"
             )
             with urllib.request.urlopen(req, timeout=30) as resp:
-                body = resp.read(400).decode("utf-8", errors="replace")
-                results.append(f"[{name}] OK {resp.status}: {body[:120]}")
+                body = resp.read(200).decode("utf-8", errors="replace")
+                results.append(f"[{name}] OK {resp.status}: {body[:80]}")
         except urllib.error.HTTPError as e:
             body = e.read().decode("utf-8", errors="replace")
-            results.append(f"[{name}] HTTP {e.code}: {body[:300]}")
+            results.append(f"[{name}] HTTP {e.code}: {body[:250]}")
         except Exception as ex:
             results.append(f"[{name}] ERR: {ex}")
 
