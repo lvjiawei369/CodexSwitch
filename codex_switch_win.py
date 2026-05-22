@@ -109,29 +109,46 @@ def _restart_codex():
         pass
 
 def _diagnose_proxy(model):
-    """POST a minimal request to moonbridge; return full response text for logging."""
-    import urllib.request, urllib.error, json
-    payload = json.dumps({
-        "model": model,
-        "input": [{"role": "user", "content": "hi"}],
-        "max_output_tokens": 5
-    }).encode("utf-8")
-    try:
-        req = urllib.request.Request(
-            f"http://127.0.0.1:{PORT}/v1/responses",
-            data=payload,
-            headers={"Content-Type": "application/json",
-                     "Authorization": "Bearer test"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
-            return f"OK {resp.status}: {body[:300]}"
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        return f"HTTP {e.code} {e.reason}: {body}"
-    except Exception as ex:
-        return f"Exception: {ex}"
+    """Run three test requests and return combined diagnostic text."""
+    import urllib.request, urllib.error, json as _json
+    results = []
+
+    TOOL_DEF = {
+        "type": "function",
+        "name": "shell",
+        "description": "run shell command",
+        "parameters": {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"]
+        }
+    }
+
+    tests = [
+        ("basic",        {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
+        ("with_tools",   {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "tools": [TOOL_DEF]}),
+        ("streaming",    {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5, "stream": True}),
+    ]
+
+    for name, payload in tests:
+        try:
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{PORT}/v1/responses",
+                data=_json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json",
+                         "Authorization": "Bearer test"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                body = resp.read(400).decode("utf-8", errors="replace")
+                results.append(f"[{name}] OK {resp.status}: {body[:120]}")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            results.append(f"[{name}] HTTP {e.code}: {body[:300]}")
+        except Exception as ex:
+            results.append(f"[{name}] ERR: {ex}")
+
+    return "\n".join(results)
 
 # ── App state ─────────────────────────────────────────────────────────────────
 class State:
