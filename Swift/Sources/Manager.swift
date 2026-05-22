@@ -170,6 +170,15 @@ class Manager: ObservableObject {
             .replacingOccurrences(of: "name = \"Moon Bridge\"",
                                   with: "name = \"\(displayName)\"")
 
+        // Merge: keep user's original settings (MCP servers, notify, plugins, etc.)
+        // Prepend the generated model config, then append original non-model sections
+        let backupPath = configDir.appendingPathComponent("config.toml.backup")
+        if FileManager.default.fileExists(atPath: backupPath.path),
+           let original = try? String(contentsOf: backupPath, encoding: .utf8),
+           !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            toml = toml + "\n\n# ── Original user settings ──\n" + original
+        }
+
         try FileManager.default.createDirectory(at: codexHome, withIntermediateDirectories: true)
         try toml.write(to: codexHome.appendingPathComponent("config.toml"), atomically: true, encoding: .utf8)
     }

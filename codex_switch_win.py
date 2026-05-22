@@ -112,37 +112,52 @@ class State:
 state = State()
 
 # ── Start / Stop ──────────────────────────────────────────────────────────────
+LOG_FILE = APP_DIR / "moonbridge.log"
+
 def start_deepseek(on_done):
     def run():
         try:
+            APP_DIR.mkdir(parents=True, exist_ok=True)
             write_moonbridge_config(state.api_key, state.model)
+
             # Backup original Codex config
             codex_cfg = CODEX_HOME / "config.toml"
             if codex_cfg.exists() and not BACKUP.exists():
                 shutil.copy2(codex_cfg, BACKUP)
 
+            # Launch moonbridge, capture output to log for debugging
+            log_f = open(LOG_FILE, "w", encoding="utf-8")
             proc = subprocess.Popen(
                 [str(MOONBRIDGE), "--config", str(CONFIG_YML)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdout=log_f, stderr=log_f,
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             state.process = proc
 
-            # Wait for port
-            for _ in range(50):
+            # Wait for port (up to 10 seconds)
+            for _ in range(100):
                 time.sleep(0.1)
+                # Check if process died early
+                if proc.poll() is not None:
+                    log_f.flush()
+                    log_content = LOG_FILE.read_text(encoding="utf-8", errors="replace")
+                    state.process = None
+                    state.enabled = False
+                    state.status = f"moonbridge 崩溃 (exit {proc.returncode})"
+                    on_done(False)
+                    return
                 if is_port_open():
                     break
             else:
                 proc.terminate()
                 state.process = None
                 state.enabled = False
-                state.status = "启动超时"
+                state.status = "启动超时 (见 moonbridge.log)"
                 on_done(False)
                 return
 
-            # Generate Codex config
-            mb = str(MOONBRIDGE)
+            # Generate Codex config via moonbridge CLI
+            mb  = str(MOONBRIDGE)
             cfg = str(CONFIG_YML)
             model_id = shell(mb, "--config", cfg, "--print-codex-model")
             toml = shell(mb, "--config", cfg,
@@ -156,8 +171,22 @@ def start_deepseek(on_done):
                 .replace('[model_providers.moonbridge]',  f'[model_providers.{state.model}]')
                 .replace('name = "Moon Bridge"',          f'name = "{display}"'))
 
+            # Merge: preserve original settings (MCP servers, notify, plugins)
+            if BACKUP.exists():
+                original = BACKUP.read_text(encoding="utf-8").strip()
+                if original:
+                    toml = toml + "\n\n# ── Original user settings ──\n" + original
+
             CODEX_HOME.mkdir(parents=True, exist_ok=True)
             (CODEX_HOME / "config.toml").write_text(toml, encoding="utf-8")
+
+            # Monitor: if moonbridge dies, update status
+            def monitor():
+                proc.wait()
+                if state.enabled:
+                    state.enabled = False
+                    state.status = "代理已停止 (重新开关以重启)"
+            threading.Thread(target=monitor, daemon=True).start()
 
             state.status = "运行中"
             on_done(True)
@@ -304,6 +333,16 @@ def open_settings_window(icon=None, item=None):
             start_deepseek(on_done)
 
     toggle_btn.config(command=on_toggle)
+
+    # Log button (shown only when log exists)
+    def open_log():
+        if LOG_FILE.exists():
+            os.startfile(str(LOG_FILE))
+    log_btn = tk.Button(win, text="查看日志", font=("Segoe UI", 8),
+                        bg=SURF, fg="#6c7086", bd=0, cursor="hand2",
+                        command=open_log)
+    log_btn.pack(anchor="e", padx=16, pady=(0, 10))
+
     update_ui()
     win.mainloop()
 
