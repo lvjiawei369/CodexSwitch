@@ -1,0 +1,47 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'codex_switch_win.py'
+      - 'CodexSwitch.spec'
+      - 'assets/moonbridge.exe'
+      - 'assets/icon.ico'
+      - 'assets/icon.png'
+      - '.github/workflows/build-windows.yml'
+  workflow_dispatch:   # 允许手动触发
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller pillow pystray
+
+      - name: Build EXE
+        run: |
+          pyinstaller --clean --noconfirm CodexSwitch.spec
+
+      - name: Verify output
+        run: |
+          dir dist\
+          echo "EXE size:"
+          (Get-Item dist\CodexSwitch.exe).length / 1MB
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CodexSwitch-Windows
+          path: dist\CodexSwitch.exe
+          retention-days: 30

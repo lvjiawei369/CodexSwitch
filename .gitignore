@@ -20,6 +20,9 @@ Swift/.build/
 assets/dmg_background.png
 assets/使用指南.txt
 
+# Windows icon.png is generated from iconset, keep .ico source
+# assets/icon.png is needed for pystray — DO track it
+
 # Icon sizes generated from Switchlogo.png (keep .icns and .iconset source)
 assets/icon_16.png
 assets/icon_32.png
