@@ -108,6 +108,31 @@ def _restart_codex():
     except Exception:
         pass
 
+def _diagnose_proxy(model):
+    """POST a minimal request to moonbridge; return full response text for logging."""
+    import urllib.request, urllib.error, json
+    payload = json.dumps({
+        "model": model,
+        "input": [{"role": "user", "content": "hi"}],
+        "max_output_tokens": 5
+    }).encode("utf-8")
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{PORT}/v1/responses",
+            data=payload,
+            headers={"Content-Type": "application/json",
+                     "Authorization": "Bearer test"},
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            return f"OK {resp.status}: {body[:300]}"
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        return f"HTTP {e.code} {e.reason}: {body}"
+    except Exception as ex:
+        return f"Exception: {ex}"
+
 # ── App state ─────────────────────────────────────────────────────────────────
 class State:
     def __init__(self):
@@ -197,6 +222,11 @@ def start_deepseek(on_done):
                 f"# model_id from --print-codex-model: {model_id}\n\n" + toml,
                 encoding="utf-8"
             )
+
+            # Diagnostic: test moonbridge proxy with a real request, log the result
+            diag = _diagnose_proxy(state.model)
+            with open(LOG_FILE, "a", encoding="utf-8") as lf:
+                lf.write(f"\n\n=== PROXY DIAGNOSTIC ===\n{diag}\n========================\n")
 
             # Monitor: if moonbridge dies, update status
             def monitor():
