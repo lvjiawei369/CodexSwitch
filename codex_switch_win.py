@@ -18,11 +18,13 @@ CONFIG_YML = APP_DIR / "config.yml"
 BACKUP     = APP_DIR / "config.toml.backup"
 PORT       = "38440"
 
-# moonbridge.exe lives next to this script (or frozen exe)
+# PyInstaller single-file: bundled files are extracted to sys._MEIPASS at runtime
 if getattr(sys, 'frozen', False):
-    BASE_DIR = Path(sys.executable).parent
+    BASE_DIR = Path(sys._MEIPASS)          # temp extraction dir
+    EXE_DIR  = Path(sys.executable).parent # dir where the .exe lives (for icon)
 else:
     BASE_DIR = Path(__file__).parent
+    EXE_DIR  = BASE_DIR
 MOONBRIDGE = BASE_DIR / "moonbridge.exe"
 
 # ── Settings ──────────────────────────────────────────────────────────────────
@@ -181,7 +183,7 @@ def stop_deepseek():
 
 # ── Tray icon image ───────────────────────────────────────────────────────────
 def make_tray_icon(active=False):
-    icon_path = BASE_DIR / "icon.png"
+    icon_path = BASE_DIR / "icon.png"   # extracted to _MEIPASS alongside moonbridge
     if icon_path.exists():
         img = Image.open(icon_path).resize((64, 64))
     else:
@@ -213,7 +215,7 @@ def open_settings_window(icon=None, item=None):
     _win = win
 
     # Try to set window icon
-    icon_path = BASE_DIR / "icon.png"
+    icon_path = BASE_DIR / "icon.png"   # same _MEIPASS path
     if icon_path.exists():
         try:
             win.iconphoto(True, tk.PhotoImage(file=str(icon_path)))
