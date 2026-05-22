@@ -192,6 +192,11 @@ def start_deepseek(on_done):
 
             CODEX_HOME.mkdir(parents=True, exist_ok=True)
             (CODEX_HOME / "config.toml").write_text(toml, encoding="utf-8")
+            # Write a debug copy so we can inspect what was generated
+            (APP_DIR / "codex_config_debug.toml").write_text(
+                f"# model_id from --print-codex-model: {model_id}\n\n" + toml,
+                encoding="utf-8"
+            )
 
             # Monitor: if moonbridge dies, update status
             def monitor():
@@ -349,14 +354,26 @@ def open_settings_window(icon=None, item=None):
 
     toggle_btn.config(command=on_toggle)
 
-    # Log button (shown only when log exists)
+    # Bottom diagnostic buttons row
+    btn_frame = tk.Frame(win, bg=BG)
+    btn_frame.pack(fill="x", padx=16, pady=(0, 10))
+
     def open_log():
         if LOG_FILE.exists():
             os.startfile(str(LOG_FILE))
-    log_btn = tk.Button(win, text="查看日志", font=("Segoe UI", 8),
-                        bg=SURF, fg="#6c7086", bd=0, cursor="hand2",
-                        command=open_log)
-    log_btn.pack(anchor="e", padx=16, pady=(0, 10))
+    tk.Button(btn_frame, text="查看日志", font=("Segoe UI", 8),
+              bg=SURF, fg="#6c7086", bd=0, cursor="hand2",
+              command=open_log).pack(side="right", padx=(4, 0))
+
+    def open_codex_cfg():
+        dbg = APP_DIR / "codex_config_debug.toml"
+        if dbg.exists():
+            os.startfile(str(dbg))
+        elif (CODEX_HOME / "config.toml").exists():
+            os.startfile(str(CODEX_HOME / "config.toml"))
+    tk.Button(btn_frame, text="查看 Codex 配置", font=("Segoe UI", 8),
+              bg=SURF, fg="#6c7086", bd=0, cursor="hand2",
+              command=open_codex_cfg).pack(side="right")
 
     update_ui()
     win.mainloop()
