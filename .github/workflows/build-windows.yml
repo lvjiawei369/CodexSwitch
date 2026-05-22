@@ -30,7 +30,9 @@ jobs:
         run: pip install pyinstaller pillow pystray
 
       - name: Build EXE with PyInstaller
-        run: pyinstaller --clean --noconfirm CodexSwitch.spec
+        run: |
+          dir
+          pyinstaller --clean --noconfirm "${{ github.workspace }}\CodexSwitch.spec"
 
       - name: Verify EXE
         run: |
