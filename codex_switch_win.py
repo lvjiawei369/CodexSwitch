@@ -40,39 +40,46 @@ def save_settings(data):
 
 # ── Moon Bridge config ────────────────────────────────────────────────────────
 def write_moonbridge_config(api_key, model):
-    # Use the new config format documented at:
-    # https://github.com/deepseek-ai/awesome-deepseek-agent/blob/main/docs/codex.md
-    upstream = f"deepseek/{model}"
+    display = "DeepSeek V4 Flash" if model == "deepseek-v4-flash" else "DeepSeek V4 Pro"
     yaml = f"""\
 mode: "Transform"
 
 server:
   addr: "127.0.0.1:{PORT}"
 
-provider:
-  providers:
-    deepseek:
-      base_url: "https://api.deepseek.com/anthropic"
-      api_key: "{api_key}"
-      models:
-        {model}:
-          context_window: 1000000
-          max_output_tokens: 384000
-          extensions:
-            deepseek_v4:
-              enabled: true
-          default_reasoning_level: "high"
-          supported_reasoning_levels:
-            - effort: "high"
-              description: "High reasoning effort"
-            - effort: "xhigh"
-              description: "Extra high reasoning effort"
-          supports_reasoning_summaries: true
-          default_reasoning_summary: "auto"
-  routes:
-    moonbridge:
-      to: "{upstream}"
-  default_model: "moonbridge"
+defaults:
+  model: "{model}"
+
+models:
+  {model}:
+    context_window: 1000000
+    max_output_tokens: 384000
+    display_name: "{display}"
+    default_reasoning_level: "high"
+    supported_reasoning_levels:
+      - effort: "high"
+        description: "High reasoning effort"
+      - effort: "xhigh"
+        description: "Extra high reasoning effort"
+    supports_reasoning_summaries: true
+    default_reasoning_summary: "auto"
+    extensions:
+      deepseek_v4:
+        enabled: true
+
+providers:
+  deepseek:
+    base_url: "https://api.deepseek.com/anthropic"
+    api_key: "{api_key}"
+    version: "2023-06-01"
+    user_agent: "moonbridge/1.0"
+    offers:
+      - model: {model}
+
+routes:
+  {model}:
+    model: {model}
+    provider: deepseek
 """
     APP_DIR.mkdir(parents=True, exist_ok=True)
     CONFIG_YML.write_text(yaml, encoding="utf-8", newline="\n")
@@ -92,77 +99,6 @@ def shell(*args):
         raise RuntimeError(r.stderr or r.stdout)
     return r.stdout.strip()
 
-def _restart_codex():
-    """Kill any running Codex process so the user gets a clean restart."""
-    try:
-        subprocess.run(["taskkill", "/F", "/IM", "codex.exe"],
-                       capture_output=True, timeout=5)
-    except Exception:
-        pass
-
-def _diagnose_proxy(model):
-    """Run targeted test requests to pinpoint 502 cause."""
-    import urllib.request, urllib.error, json as _json
-    results = []
-
-    # Check if models_catalog.json was written by --print-codex-config
-    catalog = CODEX_HOME / "models_catalog.json"
-    results.append(f"[catalog] {'EXISTS' if catalog.exists() else 'MISSING'} {catalog}")
-
-    # Read actual base_instructions from catalog (what Codex sends as system prompt)
-    base_instructions = ""
-    try:
-        catalog_data = _json.loads(catalog.read_text(encoding="utf-8"))
-        models_list = catalog_data.get("models", [])
-        if models_list:
-            base_instructions = models_list[0].get("base_instructions", "")
-    except Exception:
-        pass
-    results.append(f"[base_instructions] {len(base_instructions)} chars")
-
-    TOOL_DEF = {
-        "type": "function", "name": "shell", "description": "run shell command",
-        "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]}
-    }
-
-    HDR_FULL = {"Content-Type":"application/json","Authorization":"Bearer test","X-Codex-Window-Id":"diag-window"}
-    tests = [
-        # Previous passing tests (quick sanity)
-        ("basic",        {"Content-Type":"application/json","Authorization":"Bearer test"},
-                         {"model": model, "input": [{"role":"user","content":"hi"}], "max_output_tokens": 5}),
-        # Full Codex simulation: instructions (22KB) + tools + stream + window_id
-        ("full_sim_nostream", HDR_FULL,
-                         {"model": model,
-                          "instructions": base_instructions,
-                          "input": [{"role":"user","content":"say hello"}],
-                          "max_output_tokens": 5,
-                          "tools": [TOOL_DEF]}),
-        ("full_sim_stream",   HDR_FULL,
-                         {"model": model,
-                          "instructions": base_instructions,
-                          "input": [{"role":"user","content":"say hello"}],
-                          "max_output_tokens": 5,
-                          "stream": True,
-                          "tools": [TOOL_DEF]}),
-    ]
-
-    for name, headers, payload in tests:
-        try:
-            req = urllib.request.Request(
-                f"http://127.0.0.1:{PORT}/v1/responses",
-                data=_json.dumps(payload).encode("utf-8"),
-                headers=headers, method="POST"
-            )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                body = resp.read(200).decode("utf-8", errors="replace")
-                results.append(f"[{name}] OK {resp.status}: {body[:80]}")
-        except urllib.error.HTTPError as e:
-            body = e.read().decode("utf-8", errors="replace")
-            results.append(f"[{name}] HTTP {e.code}: {body[:250]}")
-        except Exception as ex:
-            results.append(f"[{name}] ERR: {ex}")
-
-    return "\n".join(results)
 
 # ── App state ─────────────────────────────────────────────────────────────────
 class State:
@@ -190,15 +126,14 @@ def start_deepseek(on_done):
             if codex_cfg.exists() and not BACKUP.exists():
                 shutil.copy2(codex_cfg, BACKUP)
 
-            # Launch moonbridge, capture output to log for debugging
-            # bufsize=1 + universal_newlines ensure log is flushed line-by-line
+            # Launch moonbridge, redirect output to log file
             log_f = open(LOG_FILE, "w", encoding="utf-8", buffering=1)
             proc = subprocess.Popen(
                 [str(MOONBRIDGE), "--config", str(CONFIG_YML)],
                 stdout=log_f, stderr=log_f,
                 env={**os.environ,
-                     "MOONBRIDGE_LOG_LEVEL": "debug",
-                     "GODEBUG": "http2client=0"},   # force HTTP/1.1 upstream; prevents EOF-on-first-request 502
+                     "MOONBRIDGE_LOG_LEVEL": "info",
+                     "GODEBUG": "http2client=0"},   # force HTTP/1.1; prevents EOF-on-first-request 502
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             state.process = proc
@@ -244,16 +179,6 @@ def start_deepseek(on_done):
 
             CODEX_HOME.mkdir(parents=True, exist_ok=True)
             (CODEX_HOME / "config.toml").write_text(toml, encoding="utf-8")
-            # Write a debug copy so we can inspect what was generated
-            (APP_DIR / "codex_config_debug.toml").write_text(
-                f"# model_id from --print-codex-model: {model_id}\n\n" + toml,
-                encoding="utf-8"
-            )
-
-            # Diagnostic: test moonbridge proxy with a real request, log the result
-            diag = _diagnose_proxy(state.model)
-            with open(LOG_FILE, "a", encoding="utf-8") as lf:
-                lf.write(f"\n\n=== PROXY DIAGNOSTIC ===\n{diag}\n========================\n")
 
             # Monitor: if moonbridge dies, update status
             def monitor():
@@ -264,8 +189,6 @@ def start_deepseek(on_done):
             threading.Thread(target=monitor, daemon=True).start()
 
             state.status = "运行中"
-            # Restart Codex so it picks up the new config cleanly
-            _restart_codex()
             on_done(True)
         except Exception as e:
             state.enabled = False
@@ -423,10 +346,7 @@ def open_settings_window(icon=None, item=None):
               command=open_log).pack(side="right", padx=(4, 0))
 
     def open_codex_cfg():
-        dbg = APP_DIR / "codex_config_debug.toml"
-        if dbg.exists():
-            os.startfile(str(dbg))
-        elif (CODEX_HOME / "config.toml").exists():
+        if (CODEX_HOME / "config.toml").exists():
             os.startfile(str(CODEX_HOME / "config.toml"))
     tk.Button(btn_frame, text="查看 Codex 配置", font=("Segoe UI", 8),
               bg=SURF, fg="#6c7086", bd=0, cursor="hand2",
