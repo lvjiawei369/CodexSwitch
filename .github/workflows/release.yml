@@ -7,10 +7,11 @@ on:
   workflow_dispatch:          # 支持在 GitHub 页面手动触发
 
 jobs:
-  # ── Windows: PyInstaller → CodexSwitch.exe ───────────────────────────────────
   build-windows:
     name: Windows (.exe)
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -27,108 +28,17 @@ jobs:
       - name: Rename artifact
         run: mv dist/CodexSwitch.exe dist/CodexSwitch-Setup.exe
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-exe
-          path: dist/CodexSwitch-Setup.exe
-
-  # ── macOS menu bar: swiftc → CodexSwitch.dmg ────────────────────────────────
-  build-macos:
-    name: macOS 菜单栏版 (.dmg)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build app + DMG
-        run: bash build_swift.sh
-        # build_swift.sh 调用 build_dmg.sh，但 Finder AppleScript 在无 GUI 环境下会 fail
-        # 若 DMG 步骤失败，只打包 .app.zip 作为 fallback
-        continue-on-error: true
-
-      - name: Fallback — zip .app if DMG failed
-        if: ${{ !hashFiles('dist/CodexSwitch.dmg') }}
-        run: |
-          cd dist
-          ditto -c -k --keepParent CodexSwitch.app CodexSwitch.zip
-
-      - name: Upload DMG
-        if: ${{ hashFiles('dist/CodexSwitch.dmg') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-dmg
-          path: dist/CodexSwitch.dmg
-
-      - name: Upload zip (fallback)
-        if: ${{ !hashFiles('dist/CodexSwitch.dmg') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-zip
-          path: dist/CodexSwitch.zip
-
-  # ── macOS 窗口版: swiftc → CodexSwitch-Window.dmg ───────────────────────────
-  build-macos-window:
-    name: macOS 窗口版 (.dmg)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build app + DMG
-        run: bash build_swift_window.sh
-        continue-on-error: true
-
-      - name: Fallback — zip .app if DMG failed
-        if: ${{ !hashFiles('dist/CodexSwitch-Window.dmg') }}
-        run: |
-          cd dist
-          ditto -c -k --keepParent CodexSwitch-Window.app CodexSwitch-Window.zip
-
-      - name: Upload DMG
-        if: ${{ hashFiles('dist/CodexSwitch-Window.dmg') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-window-dmg
-          path: dist/CodexSwitch-Window.dmg
-
-      - name: Upload zip (fallback)
-        if: ${{ !hashFiles('dist/CodexSwitch-Window.dmg') }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-window-zip
-          path: dist/CodexSwitch-Window.zip
-
-  # ── 汇总：创建 GitHub Release ────────────────────────────────────────────────
-  release:
-    name: 创建 Release
-    needs: [build-windows, build-macos, build-macos-window]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: 列出产物
-        run: find artifacts -type f
-
       - name: 发布 Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: CodexSwitch ${{ github.ref_name }}
           body: |
-            ## CodexSwitch ${{ github.ref_name }}
+            ## CodexSwitch ${{ github.ref_name }} — Windows
 
-            | 平台 | 文件 | 说明 |
-            |---|---|---|
-            | Windows | `CodexSwitch-Setup.exe` | 直接双击运行，系统托盘图标 |
-            | macOS 菜单栏版 | `CodexSwitch.dmg` / `.zip` | 点击 ⚡ 菜单栏图标弹出面板 |
-            | macOS 窗口版 | `CodexSwitch-Window.dmg` / `.zip` | 普通 Dock 应用，适合菜单栏不可见的用户 |
+            **下载 `CodexSwitch-Setup.exe`，双击直接运行，无需安装。**
 
-            首次运行 macOS 版请右键 → 「打开」绕过 Gatekeeper。
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.dmg
-            artifacts/**/*.zip
+            系统托盘图标 → 右键设置 → 填入 DeepSeek API Key → 开启开关。
+          files: dist/CodexSwitch-Setup.exe
           draft: false
           prerelease: false
