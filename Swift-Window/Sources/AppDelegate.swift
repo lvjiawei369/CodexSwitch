@@ -6,7 +6,42 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var manager = Manager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        buildMenuBar()
         createWindow()
+    }
+
+    /// 补全标准菜单栏，否则 SwiftUI 文本框无法使用 Cmd+V / 右键粘贴
+    private func buildMenuBar() {
+        let mainMenu = NSMenu()
+
+        // ── App 菜单 ──────────────────────────────────────────────────
+        let appItem = NSMenuItem()
+        mainMenu.addItem(appItem)
+        let appMenu = NSMenu()
+        appItem.submenu = appMenu
+        appMenu.addItem(NSMenuItem(title: "退出 CodexSwitch",
+                                   action: #selector(NSApplication.terminate(_:)),
+                                   keyEquivalent: "q"))
+
+        // ── Edit 菜单（Cut / Copy / Paste / Select All） ───────────────
+        let editItem = NSMenuItem()
+        mainMenu.addItem(editItem)
+        let editMenu = NSMenu(title: "Edit")
+        editItem.submenu = editMenu
+        editMenu.addItem(NSMenuItem(title: "Cut",
+                                    action: #selector(NSText.cut(_:)),
+                                    keyEquivalent: "x"))
+        editMenu.addItem(NSMenuItem(title: "Copy",
+                                    action: #selector(NSText.copy(_:)),
+                                    keyEquivalent: "c"))
+        editMenu.addItem(NSMenuItem(title: "Paste",
+                                    action: #selector(NSText.paste(_:)),
+                                    keyEquivalent: "v"))
+        editMenu.addItem(NSMenuItem(title: "Select All",
+                                    action: #selector(NSText.selectAll(_:)),
+                                    keyEquivalent: "a"))
+
+        NSApp.mainMenu = mainMenu
     }
 
     private func createWindow() {

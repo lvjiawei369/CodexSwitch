@@ -37,11 +37,11 @@ echo "==> Building installer DMG for $APP_NAME"
 
 # ── 清理旧文件和残留挂载卷 ──────────────────────────────────────────────────
 rm -f "$DMG_FINAL" "$DMG_TMP"
-# 用带时间戳的临时卷名，避免与任何残留卷冲突
-VOL_TMP="${APP_NAME}_tmp_$$"
-MOUNT_POINT="/Volumes/$VOL_TMP"
+# 挂载点必须与最终卷名一致，否则 .DS_Store 里的背景图路径在用户机器上对不上
+MOUNT_POINT="/Volumes/$APP_NAME"
 # 清理可能残留的同名卷
 hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null || true
+sleep 0.5
 
 # ── 1. 创建可读写 DMG（足够大的临时盘） ──────────────────────────────────────
 echo "--> Creating writable DMG..."
@@ -73,16 +73,13 @@ echo "--> Configuring Finder window..."
 # 逻辑坐标（1x）：窗口 600×400，图标区域上下留白
 # 背景图 1142x780 @144dpi → 逻辑尺寸 571x390
 # App icon 左侧 (130, 170)，Applications 右侧 (430, 170)，使用指南右下 (430, 310)
-osascript - "$MOUNT_POINT" "$APP_NAME" << 'APPLESCRIPT'
+osascript - "$APP_NAME" << 'APPLESCRIPT'
 on run argv
-  set mountPoint to item 1 of argv
-  set appFileName to item 2 of argv   -- e.g. "CodexSwitch" or "CodexSwitch-Window"
-  set bgFile to POSIX file (mountPoint & "/.background/background.png")
+  set diskName to item 1 of argv   -- 卷名 = APP_NAME，与挂载点一致
+  set bgFile to POSIX file ("/Volumes/" & diskName & "/.background/background.png")
 
   tell application "Finder"
-    -- 通过 POSIX 路径定位磁盘，避免卷名不匹配问题
-    set theDisk to disk (name of (POSIX file mountPoint as alias))
-    tell theDisk
+    tell disk diskName
       open
       set current view of container window to icon view
       set toolbar visible of container window to false
@@ -95,14 +92,14 @@ on run argv
       set text size of viewOptions to 11
       set background picture of viewOptions to bgFile
 
-      set position of item (appFileName & ".app") to {130, 170}
+      set position of item (diskName & ".app") to {130, 170}
       set position of item "Applications" to {430, 170}
       set position of item "使用指南.txt" to {430, 310}
 
       close
       open
       update without registering applications
-      delay 2
+      delay 3
       close
     end tell
   end tell
