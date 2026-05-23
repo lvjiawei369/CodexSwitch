@@ -113,8 +113,15 @@ chflags hidden "$MOUNT_POINT/.background" 2>/dev/null || true
 
 # DS_Store sync & 卸载
 sync
+sleep 2
+# 先让 Finder 主动弹出，再 hdiutil detach；全失败也继续（convert 可在只读挂载下运行）
+osascript -e "tell application \"Finder\" to try" \
+           -e "  eject disk \"$APP_NAME\"" \
+           -e "end try" 2>/dev/null || true
 sleep 1
-hdiutil detach "$MOUNT_POINT" -quiet
+hdiutil detach "$MOUNT_POINT" -quiet 2>/dev/null \
+  || hdiutil detach "$MOUNT_POINT" -force -quiet 2>/dev/null \
+  || true
 rmdir "$MOUNT_POINT" 2>/dev/null || true
 
 # ── 6. 压缩为最终 UDZO DMG ───────────────────────────────────────────────────
@@ -124,6 +131,8 @@ hdiutil convert "$DMG_TMP" \
   -imagekey zlib-level=9 \
   -o "$DMG_FINAL"
 
+# 再尝试一次 detach，然后删除临时 rw DMG（即使还挂载也可以删除文件）
+hdiutil detach "$MOUNT_POINT" -force -quiet 2>/dev/null || true
 rm -f "$DMG_TMP"
 
 SIZE=$(du -sh "$DMG_FINAL" | cut -f1)

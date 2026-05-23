@@ -13,7 +13,7 @@ DIST_DMG="dist/${APP_NAME}-Window.dmg"
 echo "==> 编译 Swift 源码（Universal Binary: arm64 + x86_64）..."
 mkdir -p "$BUILD_OUT"
 
-SRCS="$SOURCES/AppDelegate.swift $SOURCES/ContentView.swift $SOURCES/Manager.swift"
+SRCS="$SOURCES/AppDelegate.swift $SOURCES/ContentView.swift $SOURCES/Manager.swift $SOURCES/NativeTextField.swift"
 
 swiftc -O -parse-as-library \
     -target arm64-apple-macos12.0 \

@@ -22,15 +22,14 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 6) {
-                    Group {
-                        if showKey {
-                            TextField("sk-...", text: $manager.apiKey)
-                        } else {
-                            SecureField("sk-...", text: $manager.apiKey)
-                        }
-                    }
-                    .textFieldStyle(.roundedBorder)
-                    .disabled(manager.isEnabled || manager.isLoading)
+                    NativeTextField(
+                        text: $manager.apiKey,
+                        placeholder: "sk-...",
+                        isSecure: !showKey,
+                        isEnabled: !manager.isEnabled && !manager.isLoading
+                    )
+                    .frame(height: 22)
+                    .id(showKey)
 
                     Button {
                         showKey.toggle()
