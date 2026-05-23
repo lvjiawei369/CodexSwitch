@@ -9,8 +9,9 @@ class Manager: ObservableObject {
     @Published var isLoading: Bool = false
 
     private var moonProcess: Process?
+    // 使用独立目录，避免与菜单栏版（~/.codex-switch）相互干扰
     private let configDir = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".codex-switch")
+        .appendingPathComponent(".codex-switch-window")
     private let codexHome = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".codex")
     private let port = "38440"
@@ -46,11 +47,19 @@ class Manager: ObservableObject {
                 try FileManager.default.copyItem(at: codexConfig, to: backupPath)
             }
 
+            // 写 moonbridge 日志，便于排查问题
+            let logURL = configDir.appendingPathComponent("moonbridge.log")
+            FileManager.default.createFile(atPath: logURL.path, contents: nil)
+            let logHandle = try FileHandle(forWritingTo: logURL)
+
             let p = Process()
             p.executableURL = URL(fileURLWithPath: binary)
             p.arguments = ["--config", configPath]
-            p.standardOutput = FileHandle.nullDevice
-            p.standardError = FileHandle.nullDevice
+            p.standardOutput = logHandle
+            p.standardError = logHandle
+            var env = ProcessInfo.processInfo.environment
+            env["MOONBRIDGE_LOG_LEVEL"] = "info"
+            p.environment = env
             try p.run()
             await MainActor.run { self.moonProcess = p }
 
@@ -259,12 +268,18 @@ class Manager: ObservableObject {
     }
 
     func saveSettings() {
-        UserDefaults.standard.set(apiKey, forKey: "apiKey")
-        UserDefaults.standard.set(selectedModel, forKey: "model")
+        // 独立 key，避免和菜单栏版（key: "apiKey"/"model"）冲突
+        UserDefaults.standard.set(apiKey, forKey: "window.apiKey")
+        UserDefaults.standard.set(selectedModel, forKey: "window.model")
     }
 
     func loadSettings() {
-        apiKey = UserDefaults.standard.string(forKey: "apiKey") ?? ""
-        selectedModel = UserDefaults.standard.string(forKey: "model") ?? "deepseek-v4-pro"
+        // 先尝试读窗口版独立 key；若首次使用则从菜单栏版 key 迁移
+        apiKey = UserDefaults.standard.string(forKey: "window.apiKey")
+            ?? UserDefaults.standard.string(forKey: "apiKey")
+            ?? ""
+        selectedModel = UserDefaults.standard.string(forKey: "window.model")
+            ?? UserDefaults.standard.string(forKey: "model")
+            ?? "deepseek-v4-pro"
     }
 }

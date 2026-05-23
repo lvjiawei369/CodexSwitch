@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.codexswitch.app</string>
+    <string>com.codexswitch.window</string>
     <key>CFBundleName</key>
     <string>CodexSwitch</string>
     <key>CFBundleDisplayName</key>
