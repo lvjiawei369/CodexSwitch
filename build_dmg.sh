@@ -1,18 +1,31 @@
 #!/bin/bash
 # build_dmg.sh — 制作带背景图、Applications 快捷方式和使用指南的安装 DMG
+# 用法：
+#   bash build_dmg.sh            → 菜单栏版 CodexSwitch.dmg
+#   bash build_dmg.sh Window     → 窗口版   CodexSwitch-Window.dmg
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DIST="$SCRIPT_DIR/dist"
 ASSETS="$SCRIPT_DIR/assets"
-APP_NAME="CodexSwitch"
+
+# 支持可选的变体后缀（如 "Window"）
+VARIANT="${1:-}"
+if [ -n "$VARIANT" ]; then
+  APP_NAME="CodexSwitch-$VARIANT"
+  BUILD_HINT="build_swift_window.sh"
+else
+  APP_NAME="CodexSwitch"
+  BUILD_HINT="build_swift.sh"
+fi
+
 APP="$DIST/$APP_NAME.app"
 DMG_FINAL="$DIST/$APP_NAME.dmg"
 DMG_TMP="$DIST/${APP_NAME}_rw.dmg"
 
 # ── 检查素材 ──────────────────────────────────────────────────────────────────
 if [ ! -d "$APP" ]; then
-  echo "ERROR: $APP not found. Run build_swift.sh first."
+  echo "ERROR: $APP not found. Run $BUILD_HINT first."
   exit 1
 fi
 if [ ! -f "$ASSETS/dmg_background.png" ]; then
@@ -63,11 +76,13 @@ echo "--> Configuring Finder window..."
 osascript - "$MOUNT_POINT" "$APP_NAME" << 'APPLESCRIPT'
 on run argv
   set mountPoint to item 1 of argv
-  set volName to item 2 of argv
+  set appFileName to item 2 of argv   -- e.g. "CodexSwitch" or "CodexSwitch-Window"
   set bgFile to POSIX file (mountPoint & "/.background/background.png")
 
   tell application "Finder"
-    tell disk volName
+    -- 通过 POSIX 路径定位磁盘，避免卷名不匹配问题
+    set theDisk to disk (name of (POSIX file mountPoint as alias))
+    tell theDisk
       open
       set current view of container window to icon view
       set toolbar visible of container window to false
@@ -80,7 +95,7 @@ on run argv
       set text size of viewOptions to 11
       set background picture of viewOptions to bgFile
 
-      set position of item (volName & ".app") to {130, 170}
+      set position of item (appFileName & ".app") to {130, 170}
       set position of item "Applications" to {430, 170}
       set position of item "使用指南.txt" to {430, 310}
 
@@ -119,6 +134,6 @@ echo ""
 echo "✓ Done!  $DMG_FINAL  ($SIZE)"
 echo ""
 echo "  Contents:"
-echo "    CodexSwitch.app   — drag to Applications to install"
+echo "    $APP_NAME.app   — drag to Applications to install"
 echo "    Applications/     — shortcut to /Applications"
 echo "    使用指南.txt      — Chinese usage guide"

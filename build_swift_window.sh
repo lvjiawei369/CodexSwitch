@@ -54,16 +54,10 @@ echo "==> Ad-hoc 签名..."
 codesign --deep --force --sign - --options runtime "$DIST_APP" 2>&1
 echo "    $(codesign -dv "$DIST_APP" 2>&1 | grep Signature)"
 
-echo "==> 打包 .dmg..."
-rm -f "$DIST_DMG"
-mkdir -p dist
-hdiutil create \
-    -volname "$APP_NAME" \
-    -srcfolder "$DIST_APP" \
-    -ov -format UDZO \
-    "$DIST_DMG"
+echo "==> 打包精品 DMG（背景图 + Applications + 使用指南）..."
+bash "$(dirname "$0")/build_dmg.sh" Window
 
 echo ""
 echo "✓ 构建完成！"
 echo "  .app  →  $DIST_APP"
-echo "  .dmg  →  $DIST_DMG"
+echo "  .dmg  →  dist/${APP_NAME}-Window.dmg"
