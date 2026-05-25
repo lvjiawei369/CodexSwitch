@@ -46,11 +46,19 @@ class Manager: ObservableObject {
                 try FileManager.default.copyItem(at: codexConfig, to: backupPath)
             }
 
+            let logURL = configDir.appendingPathComponent("moonbridge.log")
+            FileManager.default.createFile(atPath: logURL.path, contents: nil)
+            let logHandle = try FileHandle(forWritingTo: logURL)
+
             let p = Process()
             p.executableURL = URL(fileURLWithPath: binary)
             p.arguments = ["--config", configPath]
-            p.standardOutput = FileHandle.nullDevice
-            p.standardError = FileHandle.nullDevice
+            p.standardOutput = logHandle
+            p.standardError = logHandle
+            var env = ProcessInfo.processInfo.environment
+            env["MOONBRIDGE_LOG_LEVEL"] = "info"
+            env["GODEBUG"] = "http2client=0"   // force HTTP/1.1; prevents EOF mid-stream on idle connections
+            p.environment = env
             try p.run()
             await MainActor.run { self.moonProcess = p }
 

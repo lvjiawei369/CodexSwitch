@@ -59,6 +59,7 @@ class Manager: ObservableObject {
             p.standardError = logHandle
             var env = ProcessInfo.processInfo.environment
             env["MOONBRIDGE_LOG_LEVEL"] = "info"
+            env["GODEBUG"] = "http2client=0"   // force HTTP/1.1; prevents EOF mid-stream on idle connections
             p.environment = env
             try p.run()
             await MainActor.run { self.moonProcess = p }
