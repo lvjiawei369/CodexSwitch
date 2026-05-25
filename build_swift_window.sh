@@ -51,7 +51,7 @@ chmod +x "$DIST_APP/Contents/MacOS/$APP_NAME"
 chmod +x "$DIST_APP/Contents/Resources/moonbridge"
 
 echo "==> Ad-hoc 签名..."
-codesign --deep --force --sign - --options runtime "$DIST_APP" 2>&1
+codesign --deep --force --sign - "$DIST_APP" 2>&1
 echo "    $(codesign -dv "$DIST_APP" 2>&1 | grep Signature)"
 
 echo "==> 打包精品 DMG（背景图 + Applications + 使用指南）..."
