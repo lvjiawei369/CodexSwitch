@@ -17,16 +17,21 @@ class Manager: ObservableObject {
 
     init() { loadSettings() }
 
-    // Call from any thread; dispatches UI updates to main
-    func toggle() {
+    func start() {
         setMain(\.isLoading, true)
         Task.detached { [self] in
-            if await MainActor.run(body: { self.isEnabled }) {
-                await self.startDeepSeek()
-            } else {
-                await MainActor.run { self.stopDeepSeek() }
-            }
+            await self.startDeepSeek()
             await MainActor.run { self.isLoading = false }
+        }
+    }
+
+    func stop() {
+        setMain(\.isLoading, true)
+        Task.detached { [self] in
+            await MainActor.run {
+                self.stopDeepSeek()
+                self.isLoading = false
+            }
         }
     }
 

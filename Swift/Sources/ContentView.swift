@@ -91,7 +91,7 @@ struct ContentView: View {
                         get: { manager.isEnabled },
                         set: { newVal in
                             manager.isEnabled = newVal
-                            manager.toggle()
+                            if newVal { manager.start() } else { manager.stop() }
                         }
                     ))
                     .labelsHidden()
