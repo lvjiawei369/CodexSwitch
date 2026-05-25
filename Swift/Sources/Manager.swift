@@ -126,12 +126,6 @@ class Manager: ObservableObject {
             context_window: 1000000
             max_output_tokens: 384000
             display_name: "\(display)"
-            default_reasoning_level: "high"
-            supported_reasoning_levels:
-              - effort: "high"
-                description: "High reasoning effort"
-              - effort: "xhigh"
-                description: "Extra high reasoning effort"
             supports_reasoning_summaries: true
             default_reasoning_summary: "auto"
             extensions:
