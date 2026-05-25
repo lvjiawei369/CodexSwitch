@@ -1,4 +1,4 @@
-name: Build & Release
+name: Build Windows
 
 on:
   push:
@@ -6,153 +6,33 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Windows .exe 通过 CI 自动构建
+# macOS DMG 本地 bash build_swift.sh / build_swift_window.sh 打包后用 gh release upload 上传
+
 jobs:
-  # ── Windows ──────────────────────────────────────────────────────────────────
   build-windows:
     name: Windows (.exe)
     runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install dependencies
-        run: pip install pyinstaller pillow pystray
-      - name: Build
-        run: pyinstaller --clean --noconfirm CodexSwitch.spec
-      - name: Rename
-        run: mv dist/CodexSwitch.exe dist/CodexSwitch-Setup.exe
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows
-          path: dist/CodexSwitch-Setup.exe
-
-  # ── macOS 菜单栏版 ───────────────────────────────────────────────────────────
-  build-macos:
-    name: macOS 菜单栏版 (.dmg)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Compile Universal Binary
-        run: |
-          SRCS="Swift/Sources/AppDelegate.swift Swift/Sources/ContentView.swift \
-                Swift/Sources/Manager.swift Swift/Sources/VisualEffectView.swift \
-                Swift/Sources/NativeTextField.swift"
-          mkdir -p /tmp/cs_build dist
-          swiftc -O -parse-as-library -target arm64-apple-macos12.0 \
-            -framework AppKit -framework SwiftUI $SRCS \
-            -o /tmp/cs_build/cs_arm64
-          swiftc -O -parse-as-library -target x86_64-apple-macos12.0 \
-            -framework AppKit -framework SwiftUI $SRCS \
-            -o /tmp/cs_build/cs_x86_64
-          lipo -create /tmp/cs_build/cs_arm64 /tmp/cs_build/cs_x86_64 \
-            -output /tmp/cs_build/CodexSwitch
-
-      - name: Create .app bundle
-        run: |
-          APP="dist/CodexSwitch.app"
-          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp /tmp/cs_build/CodexSwitch  "$APP/Contents/MacOS/CodexSwitch"
-          cp Swift/Info.plist            "$APP/Contents/Info.plist"
-          cp assets/moonbridge           "$APP/Contents/Resources/moonbridge"
-          cp assets/icon.icns            "$APP/Contents/Resources/AppIcon.icns"
-          chmod +x "$APP/Contents/MacOS/CodexSwitch"
-          chmod +x "$APP/Contents/Resources/moonbridge"
-          codesign --deep --force --sign - "$APP"
-
-      - name: Create DMG
-        run: |
-          hdiutil create \
-            -volname "CodexSwitch" \
-            -srcfolder dist/CodexSwitch.app \
-            -ov -format UDZO \
-            dist/CodexSwitch.dmg
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-menubar
-          path: dist/CodexSwitch.dmg
-
-  # ── macOS 窗口版 ─────────────────────────────────────────────────────────────
-  build-macos-window:
-    name: macOS 窗口版 (.dmg)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Compile Universal Binary
-        run: |
-          SRCS="Swift-Window/Sources/AppDelegate.swift Swift-Window/Sources/ContentView.swift \
-                Swift-Window/Sources/Manager.swift Swift-Window/Sources/NativeTextField.swift"
-          mkdir -p /tmp/csw_build dist
-          swiftc -O -parse-as-library -target arm64-apple-macos12.0 \
-            -framework AppKit -framework SwiftUI $SRCS \
-            -o /tmp/csw_build/cs_arm64
-          swiftc -O -parse-as-library -target x86_64-apple-macos12.0 \
-            -framework AppKit -framework SwiftUI $SRCS \
-            -o /tmp/csw_build/cs_x86_64
-          lipo -create /tmp/csw_build/cs_arm64 /tmp/csw_build/cs_x86_64 \
-            -output /tmp/csw_build/CodexSwitch
-
-      - name: Create .app bundle
-        run: |
-          APP="dist/CodexSwitch-Window.app"
-          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-          cp /tmp/csw_build/CodexSwitch  "$APP/Contents/MacOS/CodexSwitch"
-          cp Swift-Window/Info.plist      "$APP/Contents/Info.plist"
-          cp assets/moonbridge            "$APP/Contents/Resources/moonbridge"
-          cp assets/icon.icns             "$APP/Contents/Resources/AppIcon.icns"
-          chmod +x "$APP/Contents/MacOS/CodexSwitch"
-          chmod +x "$APP/Contents/Resources/moonbridge"
-          codesign --deep --force --sign - "$APP"
-
-      - name: Create DMG
-        run: |
-          hdiutil create \
-            -volname "CodexSwitch-Window" \
-            -srcfolder dist/CodexSwitch-Window.app \
-            -ov -format UDZO \
-            dist/CodexSwitch-Window.dmg
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos-window
-          path: dist/CodexSwitch-Window.dmg
-
-  # ── Release ──────────────────────────────────────────────────────────────────
-  release:
-    name: 发布 Release
-    needs: [build-windows, build-macos, build-macos-window]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+      - uses: actions/checkout@v4
 
-      - name: 发布
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pyinstaller pillow pystray
+
+      - name: Build
+        run: pyinstaller --clean --noconfirm CodexSwitch.spec
+
+      - name: Rename
+        run: mv dist/CodexSwitch.exe dist/CodexSwitch-Setup.exe
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: CodexSwitch ${{ github.ref_name }}
-          body: |
-            ## CodexSwitch ${{ github.ref_name }}
-
-            | 平台 | 文件 | 说明 |
-            |---|---|---|
-            | macOS 菜单栏版 | `CodexSwitch.dmg` | 顶部菜单栏 ⚡ 图标，弹出毛玻璃面板 |
-            | macOS 窗口版 | `CodexSwitch-Window.dmg` | 普通 Dock 应用，适合菜单栏不可见的用户 |
-            | Windows | `CodexSwitch-Setup.exe` | 系统托盘图标，双击直接运行 |
-
-            **macOS 首次运行**：右键点击 App → 打开（绕过 Gatekeeper）
-            若弹窗只有「完成」按钮：系统设置 → 隐私与安全性 → 仍然打开
-
-            **获取 API Key**：https://platform.deepseek.com
-          files: |
-            artifacts/windows/CodexSwitch-Setup.exe
-            artifacts/macos-menubar/CodexSwitch.dmg
-            artifacts/macos-window/CodexSwitch-Window.dmg
-          draft: false
-          prerelease: false
+          files: dist/CodexSwitch-Setup.exe
