@@ -260,14 +260,26 @@ def start_deepseek(on_done):
 
             # Generate Codex config via moonbridge CLI
             mb_str = str(mb)
-            cfg = str(CONFIG_YML)
+            cfg    = str(CONFIG_YML)
             model_id = shell(mb_str, "--config", cfg, "--print-codex-model")
-            # Use forward slashes for --codex-home; backslashes can confuse Go path handling
-            codex_home_fwd = CODEX_HOME.as_posix()
+
+            # Always pass the native OS path — forward-slash form can cause
+            # moonbridge to silently fail to write models_catalog.json on Windows.
+            CODEX_HOME.mkdir(parents=True, exist_ok=True)
+            codex_home_str = str(CODEX_HOME)
             toml = shell(mb_str, "--config", cfg,
                          "--print-codex-config", model_id,
                          "--codex-base-url", f"http://127.0.0.1:{PORT}/v1",
-                         "--codex-home", codex_home_fwd)
+                         "--codex-home", codex_home_str)
+
+            # Verify models_catalog.json was written — its absence causes
+            # "failed to resolve feature override precedence" in Codex.
+            catalog = CODEX_HOME / "models_catalog.json"
+            if not catalog.exists():
+                state.enabled = False
+                state.status = "models_catalog.json 未生成，请更新 moonbridge 或重试"
+                on_done(False)
+                return
 
             # Merge: preserve original settings (MCP servers, notify, plugins)
             if BACKUP.exists():
