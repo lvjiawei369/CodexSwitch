@@ -23,9 +23,9 @@
 
 ## 这是什么
 
-[Claude Codex CLI](https://github.com/anthropics/claude-code) 默认只能调用 Claude 模型。CodexSwitch 在本地启动一个透明代理，让 Codex 以为自己在和 Claude 通信，实际上请求被转发到 [DeepSeek](https://platform.deepseek.com)。
+[Codex CLI](https://github.com/openai/codex) 默认只能调用 OpenAI 模型。CodexSwitch 在本地启动一个透明代理，让 Codex 以为自己在和 OpenAI 通信，实际上请求被转发到 [DeepSeek](https://platform.deepseek.com)。
 
-**打开开关 → 用 DeepSeek。关闭开关 → 恢复 Claude。全程不碰任何配置文件。**
+**打开开关 → 用 DeepSeek。关闭开关 → 恢复 OpenAI。全程不碰任何配置文件。**
 
 ## 特性
 

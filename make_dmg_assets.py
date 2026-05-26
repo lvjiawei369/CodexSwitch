@@ -150,19 +150,26 @@ GUIDE = """\
 CodexSwitch 使用指南
 ====================
 
-【快速开始】
+【安装步骤】
 
 1. 将 CodexSwitch.app 拖入 Applications（应用程序）文件夹
-2. 从 Launchpad 或 Spotlight 启动 CodexSwitch
-3. 首次运行：右键点击图标 → 「打开」（绕过 Gatekeeper 安全提示）
+2. 在 Finder 中找到 CodexSwitch.app，【右键点击】→ 选「打开」
+3. 弹出安全提示时点「打开」即可完成授权（只需一次）
+
+⚠️  如果看到"无法打开"弹窗只有「完成」按钮（macOS Ventura/Sonoma）：
+   方法一：双击 DMG 中的「解除安全限制.command」，按提示操作
+   方法二：系统设置 → 隐私与安全性 → 滚动到底部 → 点「仍然打开」
+
+【快速开始】
+
 4. 点击菜单栏的 ⚡ 图标打开面板
 5. 输入 DeepSeek API Key（格式：sk-xxxx）
-6. 选择模型（V4 Pro 推荐 / V4 Flash 更快）
+6. 选择模型（V4 Pro 更强 / V4 Flash 更快）
 7. 打开 DeepSeek 开关，状态显示「运行中」即可使用
 
 【使用说明】
 
-• 开关 ON：Codex 将调用 DeepSeek 模型（显示 DeepSeek V4 Pro）
+• 开关 ON：Codex 将调用 DeepSeek 模型
 • 开关 OFF：停止代理，Codex 恢复默认设置
 • API Key 自动保存，重启后无需重新输入
 • 切换模型后需重新开启开关生效
@@ -174,8 +181,8 @@ CodexSwitch 使用指南
 
 【技术说明】
 
-• 本应用内置预编译的 Moon Bridge 代理程序，无需安装 Go 环境
-• 代理运行在本地 127.0.0.1:38440，不向外传输任何数据
+• 内置 Moon Bridge 代理，无需安装 Go 环境
+• 代理仅运行在本地 127.0.0.1:38440，不中转任何数据
 • API 请求直接发往 DeepSeek 服务器
 • 支持 macOS 12.0+，arm64 及 Intel 通用二进制
 """

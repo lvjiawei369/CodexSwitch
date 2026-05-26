@@ -2,7 +2,7 @@
 CodexSwitch for Windows — System tray app
 Toggles Codex between DeepSeek and default Claude via Moon Bridge proxy.
 """
-import sys, os, json, subprocess, threading, time, shutil
+import sys, os, json, subprocess, threading, time, shutil, urllib.request
 from pathlib import Path
 import tkinter as tk
 from tkinter import ttk
@@ -25,7 +25,94 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = Path(__file__).parent
     EXE_DIR  = BASE_DIR
-MOONBRIDGE = BASE_DIR / "moonbridge.exe"
+
+def _ensure_moonbridge() -> Path:
+    """Copy moonbridge.exe to a stable AppData location and keep it up-to-date.
+
+    _MEIPASS is a fresh temp folder on every launch — AV quarantines files there
+    aggressively.  AppData\\Local\\CodexSwitch persists across restarts so the binary
+    lives at a predictable, whitelistable path.  We also re-copy when the bundled
+    size differs (app update) and retry if AV briefly locks the file during scanning.
+    """
+    appdata = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+    persist_dir = appdata / "CodexSwitch"
+    persist_mb  = persist_dir / "moonbridge.exe"
+
+    # Find the bundled source (prefer _MEIPASS, fall back to beside the .exe)
+    src = next(
+        (p for p in [BASE_DIR / "moonbridge.exe", EXE_DIR / "moonbridge.exe"] if p.exists()),
+        None,
+    )
+
+    # Decide whether to (re-)copy: missing OR bundled size changed (new app version)
+    needs_copy = not persist_mb.exists()
+    if not needs_copy and src:
+        try:
+            needs_copy = persist_mb.stat().st_size != src.stat().st_size
+        except OSError:
+            needs_copy = True
+
+    if needs_copy and src:
+        persist_dir.mkdir(parents=True, exist_ok=True)
+        # Retry up to 4 times — AV may briefly lock the file while scanning _MEIPASS
+        for attempt in range(4):
+            try:
+                shutil.copy2(src, persist_mb)
+                # Verify copy landed intact
+                if persist_mb.stat().st_size == src.stat().st_size:
+                    break
+            except Exception:
+                pass
+            if attempt < 3:
+                time.sleep(0.5)
+
+    return persist_mb
+
+_MB_DOWNLOAD_URL = (
+    "https://github.com/lvjiawei369/CodexSwitch/releases/latest/download/moonbridge.exe"
+)
+
+def _download_moonbridge(dest: Path, on_status=None) -> bool:
+    """Download moonbridge.exe from the latest GitHub Release into dest.
+    on_status(msg: str) is called with progress text so the UI can show it.
+    Returns True on success.
+    """
+    tmp = dest.with_suffix(".tmp")
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if on_status:
+            on_status("正在下载 moonbridge.exe...")
+
+        def _hook(count, block, total):
+            if on_status and total > 0:
+                pct = min(100, count * block * 100 // total)
+                on_status(f"下载中... {pct}%")
+
+        urllib.request.urlretrieve(_MB_DOWNLOAD_URL, tmp, _hook)
+
+        # Verify the download is a real Windows PE (starts with "MZ")
+        with open(tmp, "rb") as f:
+            magic = f.read(2)
+        if magic != b"MZ":
+            tmp.unlink(missing_ok=True)
+            if on_status:
+                on_status("下载文件损坏，请手动获取 moonbridge.exe")
+            return False
+
+        tmp.replace(dest)
+        if on_status:
+            on_status("下载完成")
+        return True
+    except Exception as e:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+        if on_status:
+            on_status(f"下载失败: {e}")
+        return False
+
+MOONBRIDGE = _ensure_moonbridge()
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 def load_settings():
@@ -115,6 +202,23 @@ def start_deepseek(on_done):
             APP_DIR.mkdir(parents=True, exist_ok=True)
             write_moonbridge_config(state.api_key, state.model)
 
+            # Re-ensure each time: re-extract if AV deleted the AppData copy
+            mb = _ensure_moonbridge()
+            if not mb.exists():
+                # Bundle copy unavailable — try downloading from GitHub Releases
+                def _on_dl_status(msg):
+                    state.status = msg
+                    on_done(None)   # refresh UI mid-download without finishing
+
+                ok = _download_moonbridge(mb, _on_dl_status)
+                if not ok or not mb.exists():
+                    state.enabled = False
+                    state.status = (
+                        f"moonbridge.exe 下载失败，请手动将其放至:\n{mb}"
+                    )
+                    on_done(False)
+                    return
+
             # Backup original Codex config
             codex_cfg = CODEX_HOME / "config.toml"
             if codex_cfg.exists() and not BACKUP.exists():
@@ -123,7 +227,7 @@ def start_deepseek(on_done):
             # Launch moonbridge, redirect output to log file
             log_f = open(LOG_FILE, "w", encoding="utf-8", buffering=1)
             proc = subprocess.Popen(
-                [str(MOONBRIDGE), "--config", str(CONFIG_YML)],
+                [str(mb), "--config", str(CONFIG_YML)],
                 stdout=log_f, stderr=log_f,
                 env={**os.environ,
                      "MOONBRIDGE_LOG_LEVEL": "info",
@@ -155,12 +259,12 @@ def start_deepseek(on_done):
                 return
 
             # Generate Codex config via moonbridge CLI
-            mb  = str(MOONBRIDGE)
+            mb_str = str(mb)
             cfg = str(CONFIG_YML)
-            model_id = shell(mb, "--config", cfg, "--print-codex-model")
+            model_id = shell(mb_str, "--config", cfg, "--print-codex-model")
             # Use forward slashes for --codex-home; backslashes can confuse Go path handling
             codex_home_fwd = CODEX_HOME.as_posix()
-            toml = shell(mb, "--config", cfg,
+            toml = shell(mb_str, "--config", cfg,
                          "--print-codex-config", model_id,
                          "--codex-base-url", f"http://127.0.0.1:{PORT}/v1",
                          "--codex-home", codex_home_fwd)
