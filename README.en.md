@@ -147,6 +147,10 @@ CodexSwitch/
 
 ## Changelog
 
+### v1.5
+- Fix Windows "failed to resolve feature override precedence" on Codex launch: pass native backslash path to moonbridge so `models_catalog.json` is correctly written to `~/.codex/`
+- Add explicit check: if `models_catalog.json` is missing after config generation, show a clear error instead of letting Codex throw a cryptic message
+
 ### v1.4
 - Windows: copy `moonbridge.exe` to `%LOCALAPPDATA%\CodexSwitch\` on startup — no longer relying on the temp `_MEIPASS` folder that AV aggressively scans
 - Windows: if AV deletes the binary, auto-download it from GitHub Releases with live progress in the UI

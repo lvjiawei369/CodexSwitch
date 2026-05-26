@@ -147,6 +147,10 @@ CodexSwitch/
 
 ## 版本记录
 
+### v1.5
+- 修复 Windows 启动 Codex 报 "failed to resolve feature override precedence"：改用原生路径传给 moonbridge，确保 `models_catalog.json` 正确写入 `~/.codex/`
+- 新增校验：`models_catalog.json` 未生成时直接报错提示，不再让 Codex 抛出迷惑性错误
+
 ### v1.4
 - Windows：moonbridge.exe 启动时复制到 `%LOCALAPPDATA%\CodexSwitch\`，不再依赖 AV 重点扫描的临时目录
 - Windows：被杀软误删后自动从 GitHub Releases 下载，UI 实时显示进度
