@@ -162,6 +162,16 @@ CodexSwitch/
 
 ---
 
+## 交流群
+
+欢迎进群技术交流，反馈 Bug 👇
+
+<p align="center">
+  <img src="assets/wechat_group_qr.jpg" width="260" alt="微信群二维码" />
+</p>
+
+---
+
 ## 贡献
 
 欢迎提 Issue 和 PR，尤其是：
