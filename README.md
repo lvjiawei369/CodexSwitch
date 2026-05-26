@@ -5,7 +5,11 @@
 <h1 align="center">CodexSwitch</h1>
 
 <p align="center">
-  让 Claude Codex CLI 使用 DeepSeek 模型 · 一键切换 · 无需改配置
+  让 Codex CLI 使用 DeepSeek 模型 · 一键切换 · 无需改配置
+</p>
+
+<p align="center">
+  <a href="README.en.md">English</a> · 简体中文
 </p>
 
 <p align="center">
@@ -70,7 +74,7 @@
 
 ```
 Codex CLI
-    │  anthropic API 请求
+    │  OpenAI Responses API 请求
     ▼
 127.0.0.1:38440  (Moon Bridge 本地代理)
     │  格式转换 + 模型路由
@@ -142,6 +146,16 @@ CodexSwitch/
 ---
 
 ## 版本记录
+
+### v1.4
+- Windows：moonbridge.exe 启动时复制到 `%LOCALAPPDATA%\CodexSwitch\`，不再依赖 AV 重点扫描的临时目录
+- Windows：被杀软误删后自动从 GitHub Releases 下载，UI 实时显示进度
+- Windows：大小比对检测版本更新，复制失败自动重试
+- 修正 README：产品名由 "Claude Codex CLI" 更正为 "Codex CLI"（openai/codex）
+
+### v1.3
+- 微信交流群二维码
+- README 图片改用 Release CDN 链接
 
 ### v1.2
 - 修复对话中断：强制 HTTP/1.1，避免 Go HTTP/2 空闲连接被重置
