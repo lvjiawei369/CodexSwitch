@@ -167,7 +167,7 @@ CodexSwitch/
 欢迎进群技术交流，反馈 Bug 👇
 
 <p align="center">
-  <img src="assets/wechat_group_qr.jpg" width="260" alt="微信群二维码" />
+  <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.3/wechat_group_qr.jpg" width="260" alt="微信群二维码" />
 </p>
 
 ---
