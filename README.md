@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon_256.png" width="96" alt="CodexSwitch icon" />
+  <img src="assets/icon.iconset/icon_256x256.png" width="96" alt="CodexSwitch icon" />
 </p>
 
 <h1 align="center">CodexSwitch</h1>
