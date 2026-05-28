@@ -126,8 +126,13 @@ def save_settings(data):
     SETTINGS.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 # ── Moon Bridge config ────────────────────────────────────────────────────────
+def _yaml_str(s: str) -> str:
+    """Wrap s in YAML single-quotes (safe for any content; only ' needs escaping)."""
+    return "'" + s.replace("'", "''") + "'"
+
 def write_moonbridge_config(api_key, model):
     display = "DeepSeek V4 Flash" if model == "deepseek-v4-flash" else "DeepSeek V4 Pro"
+    safe_key = _yaml_str(api_key)
     yaml = f"""\
 mode: "Transform"
 
@@ -151,7 +156,7 @@ models:
 providers:
   deepseek:
     base_url: "https://api.deepseek.com/anthropic"
-    api_key: "{api_key}"
+    api_key: {safe_key}
     version: "2023-06-01"
     user_agent: "moonbridge/1.0"
     offers:

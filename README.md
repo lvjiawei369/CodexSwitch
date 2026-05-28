@@ -147,6 +147,9 @@ CodexSwitch/
 
 ## 版本记录
 
+### v1.6
+- 修复 YAML 解析错误：API Key 改用单引号写入配置文件，避免含特殊字符时报 `did not find expected hexadecimal number`
+
 ### v1.5
 - 修复 Windows 启动 Codex 报 "failed to resolve feature override precedence"：改用原生路径传给 moonbridge，确保 `models_catalog.json` 正确写入 `~/.codex/`
 - 新增校验：`models_catalog.json` 未生成时直接报错提示，不再让 Codex 抛出迷惑性错误
