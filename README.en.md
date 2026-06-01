@@ -186,7 +186,7 @@ CodexSwitch/
 |---|---|---|
 | `WinError 2` / moonbridge not found | Antivirus quarantined `moonbridge.exe` | CodexSwitch will auto-download it; or add `%LOCALAPPDATA%\CodexSwitch\` to your AV whitelist |
 | `502 Insufficient Balance` | DeepSeek account balance is zero | Top up at [platform.deepseek.com](https://platform.deepseek.com) |
-| `Reconnecting… 5/5` | Proxy stopped or network issue | Toggle OFF then ON again |
+| `502 Unknown error` / `Reconnecting… 5/5` | VPN/proxy blocking the connection to DeepSeek | **Turn off your VPN/proxy**, then toggle OFF and ON again |
 | macOS "Open Anyway" not shown | Gatekeeper strict mode | System Settings → Privacy & Security → Open Anyway |
 
 ---

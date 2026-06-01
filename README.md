@@ -93,6 +93,17 @@ api.deepseek.com
 
 ---
 
+## 常见问题
+
+| 报错 | 原因 | 解决 |
+|---|---|---|
+| `WinError 2` / 找不到 moonbridge | 杀毒软件误删了 `moonbridge.exe` | 软件会自动重新下载；或把 `%LOCALAPPDATA%\CodexSwitch\` 加入白名单 |
+| `502 Insufficient Balance` | DeepSeek 账户余额不足 | 前往 [platform.deepseek.com](https://platform.deepseek.com) 充值 |
+| `502 Unknown error` / `Reconnecting… 5/5` | VPN/代理拦截了到 DeepSeek 的连接 | **关闭 VPN/代理**，再关一次开关重新开启 |
+| macOS 弹窗只有「完成」按钮 | Gatekeeper 严格模式 | 系统设置 → 隐私与安全性 → 仍然打开 |
+
+---
+
 ## 从源码构建
 
 ### macOS
@@ -146,6 +157,10 @@ CodexSwitch/
 ---
 
 ## 版本记录
+
+### v1.7
+- 新增网络错误智能提示：面板自动读取代理日志，把 `502 Unknown error` 等还原为「关闭 VPN/代理」「余额不足」「API Key 无效」等人话提示
+- README 新增常见问题表
 
 ### v1.6
 - 修复 YAML 解析错误：API Key 改用单引号写入配置文件，避免含特殊字符时报 `did not find expected hexadecimal number`

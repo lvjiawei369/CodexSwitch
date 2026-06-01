@@ -201,6 +201,52 @@ state = State()
 # ── Start / Stop ──────────────────────────────────────────────────────────────
 LOG_FILE = APP_DIR / "moonbridge.log"
 
+# Map known upstream error signatures (matched case-insensitively) to plain-language
+# Chinese hints.  moonbridge only tells Codex "502 Bad Gateway: Unknown error";
+# the real cause lives in moonbridge.log, which we surface in the panel instead.
+_ERROR_HINTS = [
+    ("insufficient balance",  "DeepSeek 余额不足，请前往平台充值"),
+    ("402",                   "DeepSeek 余额不足，请前往平台充值"),
+    ("401",                   "API Key 无效或已失效，请检查"),
+    ("authentication",        "API Key 无效或已失效，请检查"),
+    ("invalid api key",       "API Key 无效或已失效，请检查"),
+    ("429",                   "请求过于频繁(限流)，请稍后再试"),
+    ("rate limit",            "请求过于频繁(限流)，请稍后再试"),
+    ("timeout",               "连接 DeepSeek 超时，请尝试关闭 VPN/代理"),
+    ("deadline exceeded",     "连接 DeepSeek 超时，请尝试关闭 VPN/代理"),
+    ("no such host",          "无法解析 DeepSeek 域名，请尝试关闭 VPN/代理"),
+    ("connection refused",    "无法连接 DeepSeek，请尝试关闭 VPN/代理"),
+    ("connection reset",      "连接被重置，请尝试关闭 VPN/代理"),
+    ("dial tcp",              "无法连接 DeepSeek，请尝试关闭 VPN/代理"),
+    ("eof",                   "上游连接中断，请尝试关闭 VPN/代理后重试"),
+]
+
+def _hint_for(line: str):
+    low = line.lower()
+    if not any(k in low for k in ("error", "fail", "502", "401", "402", "429",
+                                  "insufficient", "timeout", "refused", "reset")):
+        return None
+    for sig, hint in _ERROR_HINTS:
+        if sig in low:
+            return hint
+    return "上游错误: " + line.strip()[-80:]
+
+def latest_log_error(start_line: int = 0):
+    """Scan moonbridge.log from start_line onward for an error.
+    Returns (hint, total_lines).  hint is None if no new error-like line found.
+    Pass the returned total_lines back as start_line next time so only freshly
+    appended lines are considered (avoids re-reporting a stale transient error)."""
+    try:
+        lines = LOG_FILE.read_text(encoding="utf-8", errors="replace").splitlines()
+    except Exception:
+        return None, start_line
+    hint = None
+    for line in lines[start_line:]:
+        h = _hint_for(line)
+        if h:
+            hint = h   # keep the latest error in the new range
+    return hint, len(lines)
+
 def start_deepseek(on_done):
     def run():
         try:
@@ -440,6 +486,7 @@ def open_settings_window(icon=None, item=None):
             state.api_key = api
             state.model = model_var.get()
             save_settings({"api_key": state.api_key, "model": state.model})
+            log_pos[0] = 0   # log file is rewritten on start; rescan from top
             state.enabled = True
             state.status = "启动中..."
             update_ui()
@@ -448,6 +495,20 @@ def open_settings_window(icon=None, item=None):
             start_deepseek(on_done)
 
     toggle_btn.config(command=on_toggle)
+
+    # Periodically surface real upstream errors from the log while running.
+    # Only newly-appended lines are scanned so a past transient error isn't
+    # reported forever.
+    log_pos = [0]
+    def poll_log():
+        if not win.winfo_exists():
+            return
+        if state.enabled and state.status == "运行中":
+            hint, log_pos[0] = latest_log_error(log_pos[0])
+            if hint:
+                status_lbl.config(text=hint, fg="#f38ba8")
+        win.after(2000, poll_log)
+    win.after(2000, poll_log)
 
     # Bottom diagnostic buttons row
     btn_frame = tk.Frame(win, bg=BG)
