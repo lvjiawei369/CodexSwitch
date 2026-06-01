@@ -205,8 +205,8 @@ LOG_FILE = APP_DIR / "moonbridge.log"
 # Chinese hints.  moonbridge only tells Codex "502 Bad Gateway: Unknown error";
 # the real cause lives in moonbridge.log, which we surface in the panel instead.
 _ERROR_HINTS = [
-    ("insufficient balance",  "DeepSeek 余额不足，请前往平台充值"),
-    ("402",                   "DeepSeek 余额不足，请前往平台充值"),
+    ("insufficient balance",  "DeepSeek 余额不足，请先充值"),
+    ("402",                   "DeepSeek 余额不足，请先充值"),
     ("401",                   "API Key 无效或已失效，请检查"),
     ("authentication",        "API Key 无效或已失效，请检查"),
     ("invalid api key",       "API Key 无效或已失效，请检查"),
