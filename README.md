@@ -5,7 +5,7 @@
 <h1 align="center">CodexSwitch</h1>
 
 <p align="center">
-  让 Codex CLI 使用 DeepSeek 模型 · 一键切换 · 无需改配置
+  让 Codex 使用 DeepSeek 模型 · 一键切换 · 无需改配置
 </p>
 
 <p align="center">
