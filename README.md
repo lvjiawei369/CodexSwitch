@@ -158,6 +158,9 @@ CodexSwitch/
 
 ## 版本记录
 
+### v1.8
+- 修复误报：moonbridge 启动时的 `config_store 持久化已禁用` 等良性日志不再被当成错误显示
+
 ### v1.7
 - 新增网络错误智能提示：面板自动读取代理日志，把 `502 Unknown error` 等还原为「关闭 VPN/代理」「余额不足」「API Key 无效」等人话提示
 - README 新增常见问题表
