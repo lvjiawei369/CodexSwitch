@@ -221,12 +221,14 @@ _ERROR_HINTS = [
     ("eof",                   "上游连接中断，请尝试关闭 VPN/代理后重试"),
 ]
 
-# Benign log lines that contain an `error=` field but are NOT real failures.
+# Benign log lines that contain an `error=`/`upstream=` field but are NOT failures
+# (config notices and normal per-request routing logs).
 _BENIGN = ("config_store", "持久化", "persistence")
 
-# Strong markers of an actual request/upstream failure — only these trigger the
-# generic fallback, so structured info lines with an error= field are ignored.
-_STRONG_FAIL = ("502", "503", "upstream", "bad gateway", "panic", "fatal", "status 5")
+# HTTP/server failure markers.  The generic fallback fires only when one of these
+# appears *together with* an explicit "error" token, so normal routing logs like
+# `model=... provider=deepseek upstream=api.deepseek.com` are never flagged.
+_STRONG_FAIL = ("502", "503", "500", "bad gateway", "panic", "fatal", "status 5")
 
 def _hint_for(line: str):
     low = line.lower()
@@ -236,8 +238,8 @@ def _hint_for(line: str):
     for sig, hint in _ERROR_HINTS:
         if sig in low:
             return hint
-    # Generic fallback: only for clear upstream/request failures
-    if any(k in low for k in _STRONG_FAIL):
+    # Generic fallback: require both an explicit error token AND a failure marker
+    if ("error" in low or "fail" in low) and any(k in low for k in _STRONG_FAIL):
         return "上游错误: " + line.strip()[-80:]
     return None
 
