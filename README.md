@@ -208,9 +208,20 @@ CodexSwitch/
 
 欢迎进群技术交流，反馈 Bug 👇
 
-<p align="center">
-  <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.6/wechat_group_qr.jpg" width="260" alt="微信群二维码" />
-</p>
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.9/qr_codexswitch.jpg" width="240" alt="CodexSwitch 体验群" /><br/>
+      CodexSwitch 体验群
+    </td>
+    <td align="center">
+      <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.9/qr_vibecoding.jpg" width="240" alt="AI 充电官 vibecoding 交流群" /><br/>
+      AI 充电官 vibecoding 交流群
+    </td>
+  </tr>
+</table>
+
+> 二维码 7 天内有效，过期请提 Issue 或在群里联系更新。
 
 ---
 
