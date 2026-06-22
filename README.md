@@ -204,24 +204,13 @@ CodexSwitch/
 
 ---
 
-## 交流群
+## 交流
 
-欢迎进群技术交流，反馈 Bug 👇
+欢迎加我微信技术交流、反馈 Bug、拉你进群 👇
 
-<table align="center">
-  <tr>
-    <td align="center">
-      <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.9/qr_codexswitch.jpg" width="240" alt="CodexSwitch 体验群" /><br/>
-      CodexSwitch 体验群
-    </td>
-    <td align="center">
-      <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.9/qr_vibecoding.jpg" width="240" alt="AI 充电官 vibecoding 交流群" /><br/>
-      AI 充电官 vibecoding 交流群
-    </td>
-  </tr>
-</table>
-
-> 二维码 7 天内有效，过期请提 Issue 或在群里联系更新。
+<p align="center">
+  <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.9/javen_wechat.jpg" width="260" alt="作者微信" />
+</p>
 
 ---
 
