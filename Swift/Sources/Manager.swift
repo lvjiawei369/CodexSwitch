@@ -181,9 +181,14 @@ class Manager: ObservableObject {
         // Prepend the generated model config, then append original non-model sections
         let backupPath = configDir.appendingPathComponent("config.toml.backup")
         if FileManager.default.fileExists(atPath: backupPath.path),
-           let original = try? String(contentsOf: backupPath, encoding: .utf8),
-           !original.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            toml = toml + "\n\n# ── Original user settings ──\n" + original
+           let original = try? String(contentsOf: backupPath, encoding: .utf8) {
+            // Strip the user's saved model selection so it can't override deepseek
+            // (a leftover `model = "gpt-5.5"` causes 404 unknown model).
+            let cleaned = Self.stripModelKeys(original)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleaned.isEmpty {
+                toml = toml + "\n\n# ── Original user settings ──\n" + cleaned
+            }
         }
 
         try FileManager.default.createDirectory(at: codexHome, withIntermediateDirectories: true)
@@ -191,6 +196,24 @@ class Manager: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    /// Remove root-level `model` / `model_provider` assignments from a config.toml,
+    /// so a user's saved model selection (e.g. gpt-5.5) can't override deepseek.
+    /// Only lines before the first [section] header are affected.
+    static func stripModelKeys(_ tomlText: String) -> String {
+        var out: [String] = []
+        var inRoot = true
+        for line in tomlText.components(separatedBy: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("[") { inRoot = false }
+            if inRoot, let eq = trimmed.range(of: "=") {
+                let key = trimmed[..<eq.lowerBound].trimmingCharacters(in: .whitespaces)
+                if key == "model" || key == "model_provider" { continue }
+            }
+            out.append(line)
+        }
+        return out.joined(separator: "\n")
+    }
 
     private func moonBridgePath() -> String {
         if let p = Bundle.main.path(forResource: "moonbridge", ofType: nil) { return p }

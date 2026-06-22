@@ -158,6 +158,9 @@ CodexSwitch/
 
 ## 版本记录
 
+### v2.0
+- 修复 `404 unknown model: "gpt-5.5"`：合并用户原配置时剥离顶层 `model` / `model_provider`，避免之前在 Codex 选过的模型覆盖 deepseek（macOS 菜单栏版 / 窗口版 / Windows 三端同步）
+
 ### v1.9
 - 再次收紧错误识别：正常请求路由日志（含 `upstream=`）不再被误判为错误，兜底提示需同时出现 error 标志与失败码才触发
 

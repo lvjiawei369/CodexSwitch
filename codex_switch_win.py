@@ -185,6 +185,26 @@ def shell(*args):
         raise RuntimeError(r.stderr or r.stdout)
     return r.stdout.strip()
 
+def _strip_model_keys(toml_text: str) -> str:
+    """Remove root-level `model` / `model_provider` assignments from a config.toml.
+
+    Codex saves the last-selected model (e.g. gpt-5.5) at the top of config.toml.
+    When we append the user's original config to our generated one, that line would
+    override the deepseek model and cause '404 unknown model'.  Only root-table
+    lines (before the first [section] header) are stripped; everything else —
+    MCP servers, notify, plugins — is kept verbatim."""
+    out, in_root = [], True
+    for line in toml_text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("["):
+            in_root = False
+        if in_root:
+            key = stripped.split("=", 1)[0].strip() if "=" in stripped else ""
+            if key in ("model", "model_provider"):
+                continue
+        out.append(line)
+    return "\n".join(out)
+
 
 # ── App state ─────────────────────────────────────────────────────────────────
 class State:
@@ -344,9 +364,11 @@ def start_deepseek(on_done):
                 on_done(False)
                 return
 
-            # Merge: preserve original settings (MCP servers, notify, plugins)
+            # Merge: preserve original settings (MCP servers, notify, plugins) but
+            # strip the user's saved model selection so it can't override deepseek
+            # (a leftover `model = "gpt-5.5"` causes 404 unknown model).
             if BACKUP.exists():
-                original = BACKUP.read_text(encoding="utf-8").strip()
+                original = _strip_model_keys(BACKUP.read_text(encoding="utf-8")).strip()
                 if original:
                     toml = toml + "\n\n# ── Original user settings ──\n" + original
 
