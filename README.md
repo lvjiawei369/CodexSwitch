@@ -210,7 +210,7 @@ CodexSwitch/
 ## 交流
 
 欢迎加我微信技术交流、反馈 Bug、拉你进群 👇
-
+欢迎关注社媒账号：AI充电官（小红书、抖音、B站、微信公众号同名）
 <p align="center">
   <img src="https://github.com/lvjiawei369/CodexSwitch/releases/download/v1.9/javen_wechat.jpg" width="260" alt="作者微信" />
 </p>
